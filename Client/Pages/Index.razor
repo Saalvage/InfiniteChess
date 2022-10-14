@@ -1,9 +1,131 @@
 ﻿@page "/"
+@using MoonSharp.Interpreter
+@using InfiniteChess.Shared
 
 <PageTitle>Index</PageTitle>
 
-<h1>Hello, world!</h1>
+<style>
+	.chess-board { border-spacing: 0; border-collapse: collapse; }
+	.chess-board th { padding: .5em; }
+	.chess-board th + th { border-bottom: 1px solid #000; }
+	.chess-board th:first-child,
+	.chess-board td:last-child { border-right: 1px solid #000; }
+	.chess-board tr:last-child td { border-bottom: 1px solid; }
+	.chess-board th:empty { border: none; }
+	.chess-board td { width: 1.5em; height: 1.5em; text-align: center; font-size: 32px; line-height: 0;}
+	.chess-board .light { background: #eee; }
+	.chess-board .dark { background: #aaa; }
+	.clicked.light { background: green; }
+	.clicked.dark { background: darkgreen; }
+</style>
 
-Welcome to your new app.
+<table class="chess-board">
+    <tbody>
+    <tr>
+	    <th></th>
+		@for (var i = 0; i < _board.Pieces.GetLength(1); i++) {
+			<th>
+				@((char)('a' + i))
+			</th>
+		}
+    </tr>
+    @for (var row = _board.Pieces.GetLength(0) - 1; row >= 0; row--) {
+	    <tr>
+		    <th>@(row + 1)</th>
+		    @for (var col = 0; col < _board.Pieces.GetLength(1); col++) {
+			    var colCopy = col;
+			    var rowCopy = row;
+			    <td class="@((row + col) % 2 == 0 ? "light" : "dark") @(_visualClasses[colCopy, rowCopy])"
+			        style="@(_board.Pieces[col, row] is { } piece ? $"background-image: url('{_pieces[piece.Name].GetImageUrl(piece.Color)}');" +
+			                                                       $"background-size: contain;" : "")"
+				@onclick="_ => ClickOn(colCopy, rowCopy)">
+			    </td>
+		    }
+	    </tr>
+	}
+    </tbody>
+</table>
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+<textarea cols="100" rows="20" @bind="_value">
+function canMove(color, x, y, toX, toY)
+	if BOARDS[1][toX][toY] == EMPTY_SQUARE then
+		return true
+	end
+	return false
+end
+</textarea>
+
+<button @onclick="Update">Poggers Button</button>
+
+@_output
+
+@code {
+	private (int x, int y)? _clicked = null;
+
+	private string[,] _visualClasses = new string[8, 8] {
+		{ "", "", "", "", "", "", "", "", },
+		{ "", "", "", "", "", "", "", "", },
+		{ "", "", "", "", "", "", "", "", },
+		{ "", "", "", "", "", "", "", "", },
+		{ "", "", "", "", "", "", "", "", },
+		{ "", "", "", "", "", "", "", "", },
+		{ "", "", "", "", "", "", "", "", },
+		{ "", "", "", "", "", "", "", "", },
+	};
+
+	private readonly Board _board = new(
+	new Piece[8,8]
+	);
+
+	private readonly Dictionary<string, PieceData> _pieces = new() {
+		{"pawn", new() {ImageUrl = "img/pawn.svg"}},
+	};
+	private Script _script;
+	private string _value;
+	private string _output;
+
+	protected override void OnInitialized() {
+		_board.Pieces[0, 1] = new("pawn", Piece.Colors.White);
+		_board.Pieces[0, 2] = new("pawn", Piece.Colors.Black);
+
+		_visualClasses = new string[_board.Pieces.GetLength(0), _board.Pieces.GetLength(1)];
+		_visualClasses.Fill("");
+
+		_script = new(CoreModules.Preset_HardSandbox) {
+			Options = {
+				Stdin = Stream.Null,
+			},
+		};
+		_script.DoString(@"
+			EMPTY_SQUARE = {}
+			WHITE = 1
+			BLACK = 0
+			BOARDS = {}
+			BOARDS[1] = {}
+			for i=1,64 do
+		      BOARDS[1][i] = {}
+		      for j=1,64 do
+		        BOARDS[1][i][j] = EMPTY_SQUARE
+		      end
+		    end
+");
+	}
+
+	private void Update() {
+		var test = _value.Trim();
+		_script.DoString(_value.Trim());
+		var asd2 = _script.Call(_script.Globals["canMove"], 1, 1, 1, 1, 2);
+		_output = asd2.Boolean.ToString();
+	}
+
+	private void ClickOn(int x, int y) {
+		if (_clicked != null) {
+			var (oldX, oldY) = _clicked.Value;
+			_visualClasses[oldX, oldY] = "";
+			_clicked = null;
+		}
+		
+		_clicked = (x, y);
+		_visualClasses[x, y] = "clicked";
+	}
+}
