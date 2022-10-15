@@ -13,7 +13,7 @@
 	.chess-board td:last-child { border-right: 1px solid #000; }
 	.chess-board tr:last-child td { border-bottom: 1px solid; }
 	.chess-board th:empty { border: none; }
-	.chess-board td { width: 1.5em; height: 1.5em; text-align: center; font-size: 32px; line-height: 0;}
+	.chess-board td { width: 1.5em; height: 1.5em; text-align: center; font-size: 32px; line-height: 0; background-size: contain; }
 	.chess-board .light { background: #eee; }
 	.chess-board .dark { background: #aaa; }
 	.clicked.light { background: green; }
@@ -26,21 +26,21 @@
     <tbody>
     <tr>
 	    <th></th>
-		@for (var i = 0; i < _board.Pieces.GetLength(1); i++) {
+		@for (var i = 0; i < _board.Width; i++) {
 			<th>
 				@((char)('a' + i))
 			</th>
 		}
     </tr>
-    @for (var row = _board.Pieces.GetLength(0) - 1; row >= 0; row--) {
+    @for (var row = _board.Height - 1; row >= 0; row--) {
 	    <tr>
 		    <th>@(row + 1)</th>
-		    @for (var col = 0; col < _board.Pieces.GetLength(1); col++) {
+		    @for (var col = 0; col < _board.Width; col++) {
 			    var colCopy = col;
 			    var rowCopy = row;
 			    <td class="@((row + col) % 2 == 0 ? "light" : "dark") @(_visualClasses[colCopy, rowCopy])"
-			        style="@(_board.Pieces[col, row] is { } piece ? $"background-image: url('{_pieces[piece.Name].GetImageUrl(piece.Color)}');" +
-			                                                       $"background-size: contain;" : "")"
+			        style="@(_board.Pieces[col, row] is { } piece ?
+				               $"background-image: url('{PieceData.Basics[piece.Name].GetImageUrl(piece.Color)}');" : "")"
 				@onclick="_ => ClickOn(colCopy, rowCopy)">
 			    </td>
 		    }
@@ -68,43 +68,9 @@ end
 	private string[,] _visualClasses;
 
 	private readonly Board _board = new(
-	new Piece?[10,10]
+	new Piece?[8,10]
 	);
 
-	private readonly Dictionary<string, PieceData> _pieces = new() {
-		{"pawn", new() {ImageUrl = "img/pawn.svg", MoveScript = @"
-	function canMove(color, x, y, toX, toY)
-		if x == toX then
-			if BOARD[toX][toY] ~= EMPTY_SQUARE then
-				return false
-			end
-
-			if y + 1 == toY and color == WHITE or y - 1 == toY and color == BLACK then
-				return true
-			end
-
-			if color == WHITE  and y == 2 and toY == 4 and BOARD[toX][3] == EMPTY_SQUARE
-				or color == BLACK and y == BOARD_HEIGHT - 1 and toY == BOARD_HEIGHT - 3 and BOARD[toX][BOARD_HEIGHT - 2] == EMPTY_SQUARE then
-				return true
-			else
-				return false
-			end
-		else
-			-- TODO: en passant
-			if BOARD[toX][toY] == EMPTY_SQUARE then
-				return false
-			else
-				if BOARD[toX][toY].color ~= color and math.abs(x - toX) == 1
-					and (color == WHITE and y + 1 == toY or color == BLACK and y - 1 == toY) then
-					return true
-				else
-					return false
-				end
-			end
-		end
-	end
-"}},
-	};
 	private Script _script;
 	private string _value;
 	private string _output;
@@ -113,9 +79,30 @@ end
 	private readonly DynValue SCRIPT_BLACK = DynValue.NewNumber(0);
 
 	protected override void OnInitialized() {
-		_board.Add(new("pawn", Piece.Colors.White), 6, 1);
-		_board.Add(new("pawn", Piece.Colors.White), 4, 1);
-		_board.Add(new("pawn", Piece.Colors.Black), 5, 8);
+		foreach (var i in Enumerable.Range(0, _board.Pieces.GetLength(0))) {
+			_board.Add(new("pawn", Piece.Colors.White), i, 1);
+			_board.Add(new("pawn", Piece.Colors.Black), i, _board.Height - 2);
+		}
+		
+		_board.Add(new("rook", Piece.Colors.White), 0, 0);
+		_board.Add(new("rook", Piece.Colors.White), _board.Width - 1, 0);
+		_board.Add(new("rook", Piece.Colors.Black), 0, _board.Height - 1);
+		_board.Add(new("rook", Piece.Colors.Black), _board.Width - 1, _board.Height - 1);
+
+		_board.Add(new("knight", Piece.Colors.White), 1, 0);
+		_board.Add(new("knight", Piece.Colors.White), _board.Width - 2, 0);
+		_board.Add(new("knight", Piece.Colors.Black), 1, _board.Height - 1);
+		_board.Add(new("knight", Piece.Colors.Black), _board.Width - 2, _board.Height - 1);
+
+		_board.Add(new("bishop", Piece.Colors.White), 2, 0);
+		_board.Add(new("bishop", Piece.Colors.White), _board.Width - 3, 0);
+		_board.Add(new("bishop", Piece.Colors.Black), 2, _board.Height - 1);
+		_board.Add(new("bishop", Piece.Colors.Black), _board.Width - 3, _board.Height - 1);
+
+		_board.Add(new("queen", Piece.Colors.White), 3, 0);
+		_board.Add(new("king", Piece.Colors.White), _board.Width - 4, 0);
+		_board.Add(new("queen", Piece.Colors.Black), 3, _board.Height - 1);
+		_board.Add(new("king", Piece.Colors.Black), _board.Width - 4, _board.Height - 1);
 
 		_visualClasses = new string[_board.Pieces.GetLength(0), _board.Pieces.GetLength(1)];
 		_visualClasses.Fill("");
@@ -174,22 +161,14 @@ end
 					_clicked = null;
 				}
 				_clicked = (x, y);
-				_script.DoString(_pieces[piece.Name].MoveScript);
-				foreach (var (xi, yi) in EnumerateBoard()) {
+				_script.DoString(PieceData.Basics[piece.Name].MoveScript);
+				foreach (var (xi, yi) in _board) {
 					var canMove = _script.Call(_script.Globals["canMove"], piece.Color, x + 1, y + 1, xi + 1, yi + 1).Boolean;
 					_visualClasses[xi, yi] = canMove ? "can-move" : "";
 				}
 				_visualClasses[x, y] = "clicked";
 			} else {
 				_visualClasses.Fill("");
-			}
-		}
-	}
-
-	private IEnumerable<(int x, int y)> EnumerateBoard() {
-		for (var x = 0; x < _board.Pieces.GetLength(0); x++) {
-			for (var y = 0; y < _board.Pieces.GetLength(1); y++) {
-				yield return (x, y);
 			}
 		}
 	}
