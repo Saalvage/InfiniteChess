@@ -1,6 +1,7 @@
 ﻿@page "/"
 @using MoonSharp.Interpreter
 @using InfiniteChess.Shared
+@using System.Text
 
 <PageTitle>Index</PageTitle>
 
@@ -17,6 +18,8 @@
 	.chess-board .dark { background: #aaa; }
 	.clicked.light { background: green; }
 	.clicked.dark { background: darkgreen; }
+	.can-move.light { background: lightskyblue; }
+	.can-move.dark { background: blue; }
 </style>
 
 <table class="chess-board">
@@ -62,31 +65,57 @@ end
 @code {
 	private (int x, int y)? _clicked = null;
 
-	private string[,] _visualClasses = new string[8, 8] {
-		{ "", "", "", "", "", "", "", "", },
-		{ "", "", "", "", "", "", "", "", },
-		{ "", "", "", "", "", "", "", "", },
-		{ "", "", "", "", "", "", "", "", },
-		{ "", "", "", "", "", "", "", "", },
-		{ "", "", "", "", "", "", "", "", },
-		{ "", "", "", "", "", "", "", "", },
-		{ "", "", "", "", "", "", "", "", },
-	};
+	private string[,] _visualClasses;
 
 	private readonly Board _board = new(
-	new Piece[8,8]
+	new Piece?[10,10]
 	);
 
 	private readonly Dictionary<string, PieceData> _pieces = new() {
-		{"pawn", new() {ImageUrl = "img/pawn.svg"}},
+		{"pawn", new() {ImageUrl = "img/pawn.svg", MoveScript = @"
+	function canMove(color, x, y, toX, toY)
+		if x == toX then
+			if BOARD[toX][toY] ~= EMPTY_SQUARE then
+				return false
+			end
+
+			if y + 1 == toY and color == WHITE or y - 1 == toY and color == BLACK then
+				return true
+			end
+
+			if color == WHITE  and y == 2 and toY == 4 and BOARD[toX][3] == EMPTY_SQUARE
+				or color == BLACK and y == BOARD_HEIGHT - 1 and toY == BOARD_HEIGHT - 3 and BOARD[toX][BOARD_HEIGHT - 2] == EMPTY_SQUARE then
+				return true
+			else
+				return false
+			end
+		else
+			-- TODO: en passant
+			if BOARD[toX][toY] == EMPTY_SQUARE then
+				return false
+			else
+				if BOARD[toX][toY].color ~= color and math.abs(x - toX) == 1
+					and (color == WHITE and y + 1 == toY or color == BLACK and y - 1 == toY) then
+					return true
+				else
+					return false
+				end
+			end
+		end
+	end
+"}},
 	};
 	private Script _script;
 	private string _value;
 	private string _output;
 
+	private readonly DynValue SCRIPT_WHITE = DynValue.NewNumber(1);
+	private readonly DynValue SCRIPT_BLACK = DynValue.NewNumber(0);
+
 	protected override void OnInitialized() {
-		_board.Pieces[0, 1] = new("pawn", Piece.Colors.White);
-		_board.Pieces[0, 2] = new("pawn", Piece.Colors.Black);
+		_board.Add(new("pawn", Piece.Colors.White), 6, 1);
+		_board.Add(new("pawn", Piece.Colors.White), 4, 1);
+		_board.Add(new("pawn", Piece.Colors.Black), 5, 8);
 
 		_visualClasses = new string[_board.Pieces.GetLength(0), _board.Pieces.GetLength(1)];
 		_visualClasses.Fill("");
@@ -96,36 +125,73 @@ end
 				Stdin = Stream.Null,
 			},
 		};
+		_script.Globals.Set("WHITE", SCRIPT_WHITE);
+		_script.Globals.Set("BLACK", SCRIPT_BLACK);
 		_script.DoString(@"
 			EMPTY_SQUARE = {}
-			WHITE = 1
-			BLACK = 0
-			BOARDS = {}
-			BOARDS[1] = {}
-			for i=1,64 do
-		      BOARDS[1][i] = {}
-		      for j=1,64 do
-		        BOARDS[1][i][j] = EMPTY_SQUARE
-		      end
-		    end
-");
+			BOARD = {}
+		");
+
+		GenerateScriptBoard();
+	}
+
+	private void GenerateScriptBoard() {
+		var sb = new StringBuilder();
+		sb.AppendLine($"BOARD_WIDTH = {_board.Pieces.GetLength(0)}");
+		sb.AppendLine($"BOARD_HEIGHT = {_board.Pieces.GetLength(1)}");
+		for (var x = 0; x < _board.Pieces.GetLength(0); x++) {
+			sb.AppendLine($"BOARD[{x + 1}] = {{}}");
+			for (var y = 0; y < _board.Pieces.GetLength(1); y++) {
+				if (_board.Pieces[x, y] is { } piece) {
+					sb.AppendLine($"BOARD[{x + 1}][{y + 1}] = {{name = '{piece.Name}', color = {piece.Color:D}}}");
+				} else {
+					sb.AppendLine($"BOARD[{x + 1}][{y + 1}] = EMPTY_SQUARE");
+				}
+			}
+		}
+		_script.DoString(sb.ToString());
 	}
 
 	private void Update() {
 		var test = _value.Trim();
 		_script.DoString(_value.Trim());
-		var asd2 = _script.Call(_script.Globals["canMove"], 1, 1, 1, 1, 2);
-		_output = asd2.Boolean.ToString();
+		var canMove = _script.Call(_script.Globals["canMove"], 1, 1, 1, 1, 2).Boolean;
 	}
 
 	private void ClickOn(int x, int y) {
-		if (_clicked != null) {
-			var (oldX, oldY) = _clicked.Value;
-			_visualClasses[oldX, oldY] = "";
+		if (_clicked != null && _visualClasses[x, y] == "can-move") {
+			var (fromX, fromY) = _clicked.Value;
+			_board.Pieces[x, y] = _board.Pieces[fromX, fromY];
+			_board.Pieces[fromX, fromY] = null;
 			_clicked = null;
+			GenerateScriptBoard();
+			_visualClasses.Fill("");
+		} else {
+			if (_board.Pieces[x, y] is { } piece) {
+				if (_clicked != null) {
+					var (oldX, oldY) = _clicked.Value;
+					_visualClasses[oldX, oldY] = "";
+					_clicked = null;
+				}
+				_clicked = (x, y);
+				_script.DoString(_pieces[piece.Name].MoveScript);
+				foreach (var (xi, yi) in EnumerateBoard()) {
+					var canMove = _script.Call(_script.Globals["canMove"], piece.Color, x + 1, y + 1, xi + 1, yi + 1).Boolean;
+					_visualClasses[xi, yi] = canMove ? "can-move" : "";
+				}
+				_visualClasses[x, y] = "clicked";
+			} else {
+				_visualClasses.Fill("");
+			}
 		}
-		
-		_clicked = (x, y);
-		_visualClasses[x, y] = "clicked";
 	}
+
+	private IEnumerable<(int x, int y)> EnumerateBoard() {
+		for (var x = 0; x < _board.Pieces.GetLength(0); x++) {
+			for (var y = 0; y < _board.Pieces.GetLength(1); y++) {
+				yield return (x, y);
+			}
+		}
+	}
+
 }

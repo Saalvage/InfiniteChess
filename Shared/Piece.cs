@@ -1,6 +1,6 @@
 ﻿namespace InfiniteChess.Shared;
 
-public record Piece(string Name, Piece.Colors Color) {
+public record struct Piece(string Name, Piece.Colors Color, long Id = -1) {
     public enum Colors {
         Black = 0, White = 1,
     }
