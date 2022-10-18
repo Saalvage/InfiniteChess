@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InfiniteChess.Client", "Cli
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InfiniteChess.Shared", "Shared\InfiniteChess.Shared.csproj", "{DE463387-9B89-4414-AB1E-CC674B026871}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfiniteChess.UnitTests", "InfiniteChess.UnitTests\InfiniteChess.UnitTests.csproj", "{8594F861-641A-42D0-8D0E-1A5D1D923F84}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InfiniteChess.UnitTests", "UnitTests\InfiniteChess.UnitTests.csproj", "{347B4447-171B-420A-B0DF-3E3ADEC06AAD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,10 +29,10 @@ Global
 		{DE463387-9B89-4414-AB1E-CC674B026871}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DE463387-9B89-4414-AB1E-CC674B026871}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DE463387-9B89-4414-AB1E-CC674B026871}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8594F861-641A-42D0-8D0E-1A5D1D923F84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8594F861-641A-42D0-8D0E-1A5D1D923F84}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8594F861-641A-42D0-8D0E-1A5D1D923F84}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8594F861-641A-42D0-8D0E-1A5D1D923F84}.Release|Any CPU.Build.0 = Release|Any CPU
+		{347B4447-171B-420A-B0DF-3E3ADEC06AAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{347B4447-171B-420A-B0DF-3E3ADEC06AAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{347B4447-171B-420A-B0DF-3E3ADEC06AAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{347B4447-171B-420A-B0DF-3E3ADEC06AAD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
