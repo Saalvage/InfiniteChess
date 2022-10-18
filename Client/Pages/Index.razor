@@ -112,11 +112,16 @@ end
 				Stdin = Stream.Null,
 			},
 		};
+		UserData.RegisterType<Position>();
 		_script.Globals.Set("WHITE", SCRIPT_WHITE);
 		_script.Globals.Set("BLACK", SCRIPT_BLACK);
 		_script.DoString(@"
 			EMPTY_SQUARE = {}
 			BOARD = {}
+
+			function isValidPosition(x, y)
+				return x >= 1 and y >= 1 and x <= BOARD_WIDTH and y <= BOARD_HEIGHT
+			end
 		");
 
 		GenerateScriptBoard();
@@ -162,9 +167,18 @@ end
 				}
 				_clicked = (x, y);
 				_script.DoString(PieceData.Basics[piece.Name].MoveScript);
-				foreach (var (xi, yi) in _board) {
+				/*foreach (var (xi, yi) in _board) {
 					var canMove = _script.Call(_script.Globals["canMove"], piece.Color, x + 1, y + 1, xi + 1, yi + 1).Boolean;
 					_visualClasses[xi, yi] = canMove ? "can-move" : "";
+				}*/
+				_visualClasses.Fill("");
+				if (_script.Globals["getValidMoves"] is not null) {
+					var test = _script.Call(_script.Globals["getValidMoves"], piece.Color, x + 1, y + 1);
+					foreach (var (xi, yi) in _script.Call(_script.Globals["getValidMoves"], piece.Color, x + 1, y + 1).Table.Values
+						.Select(x => x.ToPosition()).Where(x => x != null).Select(x => x.Value)
+						.Where(x => x.X >= 0 && x.Y >= 0 && x.X < _board.Width && x.Y < _board.Height)) {
+						_visualClasses[xi, yi] = "can-move";
+					}
 				}
 				_visualClasses[x, y] = "clicked";
 			} else {

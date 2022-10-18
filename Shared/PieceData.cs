@@ -37,6 +37,23 @@ function canMove(color, x, y, toX, toY)
 		end
 	end
 end
+
+function getValidMoves(color, x, y)
+	local moves = { }
+	local dir = color == WHITE and 1 or -1
+	if BOARD[x][y + dir] == EMPTY_SQUARE then
+		table.insert(moves, { x, y + dir })
+		if BOARD[x][y + dir * 2] == EMPTY_SQUARE and (color == WHITE and y == 2 or color == BLACK and y == BOARD_HEIGHT - 1) then
+			table.insert(moves, { x, y + dir * 2 })
+		end
+	end
+	for i = -1, 1, 2 do
+		if isValidPosition(x + i, y + dir) and BOARD[x + i][y + dir] ~= EMPTY_SQUARE and BOARD[x + i][y + dir].color ~= color then
+			table.insert(moves, { x + i, y + dir })
+		end
+	end
+	return moves
+end
 ")},
 		{ "knight", new("img/knight.svg", @"
 function canMove(color, x, y, toX, toY)
@@ -47,6 +64,22 @@ function canMove(color, x, y, toX, toY)
 	else
 		return false
 	end
+end
+
+function getValidMoves(color, x, y)
+	local moves = { }
+	for i = -2, 2 do
+		for j = -2, 2 do
+			local toX = x + i
+			local toY = y + j
+			if math.abs(i) + math.abs(j) == 3 and isValidPosition(toX, toY) then
+				if BOARD[toX][toY] == EMPTY_SQUARE or BOARD[toX][toY].color ~= color then
+					table.insert(moves, { x + i, y + j })
+				end
+			end
+		end
+	end
+	return moves
 end
 ")},
 		{"bishop", new("img/bishop.svg", @"
@@ -69,6 +102,27 @@ function canMove(color, x, y, toX, toY)
 	else
 		return false
 	end
+end
+
+function getValidMoves(color, x, y)
+	local moves = { }
+	local min = math.min(BOARD_WIDTH, BOARD_HEIGHT)
+	local dirs = { { 1, 1 }, { -1, -1 }, { -1, 1 }, { 1, -1 } }
+	for i, dir in ipairs(dirs) do
+		for j = 1, min do
+			local toX = x + j * dir[1]
+			local toY = y + j * dir[2]
+			if isValidPosition(toX, toY) then
+				if BOARD[toX][toY] == EMPTY_SQUARE or BOARD[toX][toY].color ~= color then
+					table.insert(moves, { toX, toY })
+				end
+				if BOARD[toX][toY] ~= EMPTY_SQUARE then
+					break
+				end
+			end
+		end
+	end
+	return moves
 end
 ")},
 		{"rook", new("img/rook.svg", @"
@@ -99,6 +153,27 @@ function canMove(color, x, y, toX, toY)
 	else
 		return false
 	end
+end
+
+function getValidMoves(color, x, y)
+	local moves = { }
+	local max = math.max(BOARD_WIDTH, BOARD_HEIGHT)
+	local dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+	for i, dir in ipairs(dirs) do
+		for j = 1, max do
+			local toX = x + j * dir[1]
+			local toY = y + j * dir[2]
+			if isValidPosition(toX, toY) then
+				if BOARD[toX][toY] == EMPTY_SQUARE or BOARD[toX][toY].color ~= color then
+					table.insert(moves, { toX, toY })
+				end
+				if BOARD[toX][toY] ~= EMPTY_SQUARE then
+					break
+				end
+			end
+		end
+	end
+	return moves
 end
 ")},
 		{"queen", new("img/queen.svg", @"
@@ -136,6 +211,28 @@ function canMove(color, x, y, toX, toY)
 		return false
 	end
 end
+
+function getValidMoves(color, x, y)
+	local moves = { }
+	local max = math.max(BOARD_WIDTH, BOARD_HEIGHT)
+	local dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+				   { 1, 1 }, { -1, -1 }, { -1, 1 }, { 1, -1 } }
+	for i, dir in ipairs(dirs) do
+		for j = 1, max do
+			local toX = x + j * dir[1]
+			local toY = y + j * dir[2]
+			if isValidPosition(toX, toY) then
+				if BOARD[toX][toY] == EMPTY_SQUARE or BOARD[toX][toY].color ~= color then
+					table.insert(moves, { toX, toY })
+				end
+				if BOARD[toX][toY] ~= EMPTY_SQUARE then
+					break
+				end
+			end
+		end
+	end
+	return moves
+end
 ")},
 		{"king", new("img/king.svg", @"
 function canMove(color, x, y, toX, toY)
@@ -145,6 +242,18 @@ function canMove(color, x, y, toX, toY)
 	else
 		return false
 	end
+end
+
+function getValidMoves(color, x, y)
+	local moves = { }
+	local possibleMoves = { { x + 1, y }, { x - 1, y }, { x, y + 1 }, { x, y - 1 },
+			                { x + 1, y + 1 }, { x - 1, y - 1 }, { x - 1, y + 1 }, { x + 1, y - 1 } }
+	for i, move in ipairs(possibleMoves) do
+		if isValidPosition(move[1], move[2]) and (BOARD[move[1]][move[2]] == EMPTY_SQUARE or BOARD[move[1]][move[2]].color ~= color) then
+			table.insert(moves, move)
+		end
+	end
+	return moves
 end
 ")},
 	};
