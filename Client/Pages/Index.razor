@@ -2,6 +2,8 @@
 @using MoonSharp.Interpreter
 @using InfiniteChess.Shared
 @using System.Text
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
 
 <PageTitle>Index</PageTitle>
 
@@ -63,11 +65,13 @@ end
 @_output
 
 @code {
+	private HubConnection _connection;
+
 	private (int x, int y)? _clicked = null;
 
 	private string[,] _visualClasses;
 
-	private readonly Board _board = new(
+	private Board _board = new(
 	new Piece?[8,10]
 	);
 
@@ -77,6 +81,21 @@ end
 
 	private readonly DynValue SCRIPT_WHITE = DynValue.NewNumber(1);
 	private readonly DynValue SCRIPT_BLACK = DynValue.NewNumber(0);
+
+	protected override async Task OnInitializedAsync() {
+		_connection = new HubConnectionBuilder()
+			.WithUrl(Navigation.ToAbsoluteUri("/chat"))
+			.AddNewtonsoftJsonProtocol()
+			.Build();
+
+		_connection.On<Board>("ReceiveBoard", x => {
+			_board = x;
+			StateHasChanged();
+			GenerateScriptBoard();
+		});
+
+		await _connection.StartAsync();
+	}
 
 	protected override void OnInitialized() {
 		foreach (var i in Enumerable.Range(0, _board.Pieces.GetLength(0))) {
@@ -155,6 +174,7 @@ end
 			var (fromX, fromY) = _clicked.Value;
 			_board.Pieces[x, y] = _board.Pieces[fromX, fromY];
 			_board.Pieces[fromX, fromY] = null;
+			_connection.SendAsync("SendBoard", _board);
 			_clicked = null;
 			GenerateScriptBoard();
 			_visualClasses.Fill("");
@@ -175,7 +195,7 @@ end
 				if (_script.Globals["getValidMoves"] is not null) {
 					var test = _script.Call(_script.Globals["getValidMoves"], piece.Color, x + 1, y + 1);
 					foreach (var (xi, yi) in _script.Call(_script.Globals["getValidMoves"], piece.Color, x + 1, y + 1).Table.Values
-						.Select(x => x.ToPosition()).Where(x => x != null).Select(x => x.Value)
+						.Choose(x => x.ToPosition())
 						.Where(x => x.X >= 0 && x.Y >= 0 && x.X < _board.Width && x.Y < _board.Height)) {
 						_visualClasses[xi, yi] = "can-move";
 					}
@@ -187,4 +207,9 @@ end
 		}
 	}
 
+	public async ValueTask DisposeAsync() {
+		if (_connection is not null) {
+			await _connection.DisposeAsync();
+		}
+	}
 }

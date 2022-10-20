@@ -13,9 +13,10 @@ public static class Extensions {
 			return new((int)xd - 1, (int)yd - 1);
 		}
 
-		if (value.Tuple is { } tuple) {
-			return tuple.Length == 2 && TryGetInt(tuple[0]) is { } x && TryGetInt(tuple[1]) is { } y
-				? new Position(x - 1, y - 1) : null;
+		if (value.Tuple is { Length: 2 } tuple
+		    && TryGetInt(tuple[0], out var x)
+		    && TryGetInt(tuple[1], out var y)) {
+			return new(x - 1, y - 1);
 		}
 
 		return null;
@@ -23,7 +24,19 @@ public static class Extensions {
 		bool IsInteger(double d)
 			=> Math.Abs(d % 1) < 0.000001;
 
-		int? TryGetInt(DynValue dyn)
-			=> dyn.Type == DataType.Number && IsInteger(dyn.Number) ? (int)dyn.Number : null;
+		bool TryGetInt(DynValue dyn, out int i) {
+			i = default;
+			if (dyn.Type != DataType.Number || !IsInteger(dyn.Number)) { return false; }
+			
+			i = (int)dyn.Number;
+			return true;
+		}
 	}
+
+	public static IEnumerable<S> Choose<T, S>(this IEnumerable<T> @enum, Func<T, S?> mapper)
+		=> @enum.Select(mapper).Where(x => x != null).Select(x => x!);
+
+	public static IEnumerable<S> Choose<T, S>(this IEnumerable<T> @enum, Func<T, S?> mapper)
+		where S : struct
+		=> @enum.Select(mapper).Where(x => x != null).Select(x => x.Value);
 }
